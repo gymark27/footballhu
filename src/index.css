@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Globális reset a scrollra 
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Vite root 
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* opcionális, de jó tesztnek is */
+body {
+  @apply bg-neutral-950 text-white;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #020617;   /* neutral-950 környéke */
+  overflow-x: hidden;    /* ne legyen vízszintes scroll */
+  overflow-y: auto;      /* CSAK a böngésző görget függőlegesen */
+}
+
+/* Itt most ne legyen saját scroll, csak nőjön a tartalommal */
+#root {
+  height: 100%;
+  max-height: none;
+  overflow: visible;     /* fontos: NE legyen overflow-y-auto itt */
+}
+
+/* --- FootballHu sötét scrollbar design --- */
+
+::-webkit-scrollbar {
+  width: 10px;
+  background: #0f0f17; /* nagyon sötét háttér */
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f17; /* egységes sötét */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2c2c3a;        /* sötét-szürke húzó */
+  border-radius: 10px;        /* lekerekítés */
+  border: 2px solid #0f0f17;  /* kis térköz-hatás */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b3b4a; /* kicsit világosabb hover */
+}
+
+
