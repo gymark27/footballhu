@@ -1,0 +1,26 @@
+name = "footballhu"
+main = "worker/index.js"
+compatibility_date = "2025-01-01"
+
+# A Vite build kimenete - ezt szolgalja ki statikusan a Worker
+#[assets]
+#directory = "./dist"
+#not_found_handling = "single-page-application"
+
+# ---- D1 adatbazis ----
+# A database_id-t a "wrangler d1 create footballhu-db" parancs adja vissza,
+# azt kell ide bemasolni.
+[[d1_databases]]
+binding = "DB"
+database_name = "footballhu-db"
+database_id = "7d7126a0-c942-4675-b5c8-4e8d01c01710"
+migrations_dir = "migrations"
+
+# ---- R2 tarhely a hirdeteskepeknek (kesobb) ----
+# [[r2_buckets]]
+# binding = "IMAGES"
+# bucket_name = "footballhu-images"
+
+# ---- Utemezett feed-import (kesobb) ----
+# [triggers]
+# crons = ["0 */6 * * *"]
