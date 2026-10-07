@@ -1,16 +1,26 @@
 // ============================================================
-// Modell reszletek oldal - mind a harom markahoz
+// Modell részletező
 // src/pages/BootDetail.jsx
-//
-// Ez valtja ki a NikeBootDetail / AdidasBootDetail /
-// PumaBootDetail harmast.
 // ============================================================
 
 import React, { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { api, useApi } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { SURFACE_LABELS } from "../data/brandConfig";
+import {
+  Panel,
+  Price,
+  Badge,
+  Chip,
+  Button,
+  Input,
+  Select,
+  ErrorState,
+  StaggerList,
+  StaggerItem,
+} from "../components/ui";
 
 const WIDTH_LABELS = {
   narrow: "Keskeny lábfej",
@@ -20,225 +30,285 @@ const WIDTH_LABELS = {
 
 export default function BootDetail() {
   const { brand, slug } = useParams();
+  const { data: boot, loading, error } = useApi(() => api.boot(slug), [slug]);
 
-  const { data: boot, loading, error } = useApi(
-    () => api.boot(slug),
-    [slug]
-  );
-
-  if (loading) {
-    return (
-      <Wrapper>
-        <p className="text-sm text-gray-400">Betöltés…</p>
-      </Wrapper>
-    );
-  }
+  if (loading) return <DetailSkeleton />;
 
   if (error || !boot) {
     return (
       <Wrapper>
-        <h1 className="mb-2 text-xl font-semibold">Nem található ez a modell</h1>
-        <p className="mb-6 text-sm text-gray-400">{error}</p>
+        <ErrorState>{error || "Ez a modell nem található."}</ErrorState>
         <Link
           to={`/webshop/${brand}`}
-          className="inline-flex items-center rounded-full bg-indigo-500 px-5 py-2 text-sm font-semibold"
+          className="mt-5 inline-block text-indigo-300 hover:text-indigo-200"
         >
-          ← Vissza a modellekhez
+          Vissza a modellekhez
         </Link>
       </Wrapper>
     );
   }
 
   return (
-    <div className="bg-neutral-950 text-white">
-      <section className="mx-auto max-w-6xl px-4 pb-20 pt-10">
-        {/* ---------- Fejlec ---------- */}
-        <Link
-          to={`/webshop/${brand}`}
-          className="mb-6 inline-block text-xs text-gray-400 transition hover:text-white"
-        >
-          ← {boot.brand_name} modellek
-        </Link>
+    <Wrapper>
+      {/* ---------- Fejléc ---------- */}
+      <Link
+        to={`/webshop/${brand}`}
+        className="text-meta text-gray-500 transition-colors hover:text-gray-300"
+      >
+        {boot.brand_name} modellek
+      </Link>
 
-        <div className="mb-10">
-          <p className="text-xs uppercase tracking-[0.25em] text-gray-500">
-            {boot.brand_name} • {boot.line_name}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{boot.name}</h1>
-          <p className="mt-3 max-w-2xl text-sm text-gray-300">{boot.tagline}</p>
+      <header className="mb-12 mt-3">
+        <p className="text-gray-500">{boot.line_name}</p>
+        <h1 className="mt-1 text-white">{boot.name}</h1>
+        {boot.tagline && (
+          <p className="prose-narrow mt-4 text-lg text-gray-400">{boot.tagline}</p>
+        )}
 
-          <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
-            <Chip>{SURFACE_LABELS[boot.surface] || boot.surface}</Chip>
-            <Chip>{boot.tier}</Chip>
-            {boot.weight_grams && <Chip>{boot.weight_grams} g</Chip>}
-            {boot.width_fit && <Chip>{WIDTH_LABELS[boot.width_fit]}</Chip>}
-          </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Chip>{SURFACE_LABELS[boot.surface] || boot.surface}</Chip>
+          <Chip>{boot.tier}</Chip>
+          {boot.weight_grams && <Chip>{boot.weight_grams} g</Chip>}
+          {boot.width_fit && <Chip>{WIDTH_LABELS[boot.width_fit]}</Chip>}
+        </div>
+      </header>
+
+      <div className="grid gap-7 lg:grid-cols-5">
+        {/* ---------- Bal oszlop ---------- */}
+        <div className="space-y-7 lg:col-span-3">
+          <Panel title="Specifikációk">
+            <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+              <Spec label="Felsőrész" value={boot.upper} />
+              <Spec label="Stoplik" value={boot.studs} />
+              <Spec label="Súly" value={boot.weight_grams && `${boot.weight_grams} g`} />
+              <Spec label="Illeszkedés" value={WIDTH_LABELS[boot.width_fit]} />
+            </dl>
+          </Panel>
+
+          {(boot.playstyle_txt || boot.players_txt) && (
+            <Panel title="Kinek ajánljuk">
+              {boot.playstyle_txt && (
+                <p className="prose-narrow leading-relaxed text-gray-300">
+                  {boot.playstyle_txt}
+                </p>
+              )}
+              {boot.players_txt && (
+                <p className="prose-narrow mt-4 leading-relaxed text-gray-500">
+                  {boot.players_txt}
+                </p>
+              )}
+            </Panel>
+          )}
+
+          <Panel title="Elérhető méretek">
+            <div className="flex flex-wrap gap-2">
+              {boot.sizes.map((s) => (
+                <Chip key={s}>EU {s}</Chip>
+              ))}
+            </div>
+          </Panel>
+
+          <UsedListings boot={boot} />
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* ---------- Bal oszlop ---------- */}
-          <div className="space-y-6 lg:col-span-2">
-            <Panel title="Specifikációk">
-              <dl className="grid gap-3 sm:grid-cols-2">
-                <Spec label="Felsőrész" value={boot.upper} />
-                <Spec label="Stoplik" value={boot.studs} />
-                <Spec label="Súly" value={boot.weight_grams && `${boot.weight_grams} g`} />
-                <Spec label="Illeszkedés" value={WIDTH_LABELS[boot.width_fit]} />
-              </dl>
-            </Panel>
-
-            {(boot.playstyle_txt || boot.players_txt) && (
-              <Panel title="Kinek ajánljuk?">
-                {boot.playstyle_txt && (
-                  <p className="mb-3 text-sm text-gray-300">{boot.playstyle_txt}</p>
-                )}
-                {boot.players_txt && (
-                  <p className="text-sm text-gray-400">{boot.players_txt}</p>
-                )}
-              </Panel>
-            )}
-
-            <Panel title="Elérhető méretek">
-              <div className="flex flex-wrap gap-2">
-                {boot.sizes.map((size) => (
-                  <span
-                    key={size}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs"
-                  >
-                    EU {size}
-                  </span>
-                ))}
-              </div>
-            </Panel>
-
-            <UsedListings boot={boot} />
-          </div>
-
-          {/* ---------- Jobb oszlop: partnerarak ---------- */}
-          <div>
-            <Panel title="Partner ajánlatok" sticky>
-              <p className="mb-4 text-[11px] text-gray-500">
-                A vásárlás a partner oldalán történik. Az árak tájékoztató jellegűek.
+        {/* ---------- Jobb oszlop: árak ---------- */}
+        <div className="lg:col-span-2">
+          <Panel title="Partnerárak" sticky>
+            {boot.offers.length === 0 ? (
+              <p className="text-gray-500">
+                Ehhez a modellhez jelenleg nincs partnerajánlat.
               </p>
+            ) : (
+              <>
+                <StaggerList className="space-y-3">
+                  {boot.offers.map((offer, i) => (
+                    <StaggerItem key={offer.id}>
+                      <div
+                        className={`rounded-2xl px-4 py-4 transition-colors duration-200 ${
+                          i === 0
+                            ? "bg-amber-400/[0.09] ring-1 ring-amber-400/30"
+                            : "bg-black/40 hover:bg-black/60"
+                        }`}
+                      >
+                        <div className="flex items-end justify-between gap-3">
+                          <span className="pb-1 text-gray-300">
+                            {offer.partner_name}
+                          </span>
+                          <Price
+                            value={offer.price_formatted}
+                            size={i === 0 ? "lead" : "sub"}
+                          />
+                        </div>
 
-              <div className="space-y-3">
-                {boot.offers.map((offer, i) => (
-                  <div
-                    key={offer.id}
-                    className={`rounded-2xl p-3 ring-1 ${
-                      i === 0
-                        ? "bg-amber-500/10 ring-amber-400/30"
-                        : "bg-black/60 ring-white/5"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-semibold text-white">
-                        {offer.partner_name}
-                      </p>
-                      {i === 0 && (
-                        <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
-                          Legolcsóbb
-                        </span>
-                      )}
-                      {offer.is_sale && i !== 0 && (
-                        <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
-                          Akciós
-                        </span>
-                      )}
-                    </div>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                          {i === 0 && <Badge tone="amber">Legkedvezőbb</Badge>}
+                          {offer.is_sale && <Badge tone="rose">Akciós</Badge>}
+                          {!offer.in_stock && <Badge>Nincs készleten</Badge>}
+                          {offer.note && (
+                            <span className="text-meta text-gray-500">
+                              {offer.note}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </StaggerItem>
+                  ))}
+                </StaggerList>
 
-                    <p className="mt-1 text-lg font-semibold text-amber-300">
-                      {offer.price_formatted}
-                    </p>
-                    {offer.note && (
-                      <p className="mt-1 text-[11px] text-gray-400">{offer.note}</p>
-                    )}
-                    {!offer.in_stock && (
-                      <p className="mt-1 text-[11px] text-rose-300">Jelenleg nincs készleten</p>
-                    )}
-                  </div>
-                ))}
-
-                {boot.offers.length === 0 && (
-                  <p className="text-xs text-gray-500">
-                    Jelenleg nincs elérhető partner ajánlat.
-                  </p>
-                )}
-              </div>
-            </Panel>
-          </div>
+                <p className="text-meta mt-5 leading-relaxed text-gray-500">
+                  A vásárlás a partner oldalán történik. Az árak tájékoztató
+                  jellegűek, a legutóbbi frissítés időpontjában érvényesek.
+                </p>
+              </>
+            )}
+          </Panel>
         </div>
-      </section>
-    </div>
+      </div>
+    </Wrapper>
   );
 }
 
 // ------------------------------------------------------------
-// Hasznalt hirdetesek + urlap
+// Használt hirdetések
 // ------------------------------------------------------------
 function UsedListings({ boot }) {
-  const [form, setForm] = useState({ size: "", condition: "", price: "", note: "" });
-  const [sent, setSent] = useState(false);
+  const { user } = useAuth();
+
+  const empty = {
+    eu_size: "",
+    condition_txt: "",
+    price_huf: "",
+    location: "",
+    note: "",
+  };
+
+  const [form, setForm] = useState(empty);
+  const [state, setState] = useState({ busy: false, error: null, sent: false });
 
   const update = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const handleSubmit = () => {
-    // TODO: POST /api/listings - a bejelentkezes utan kerul be
-    setSent(true);
+  const handleSubmit = async () => {
+    setState({ busy: true, error: null, sent: false });
+
+    try {
+      const res = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ boot_id: boot.id, ...form }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "A hirdetést nem sikerült beküldeni.");
+
+      setForm(empty);
+      setState({ busy: false, error: null, sent: true });
+    } catch (err) {
+      setState({ busy: false, error: err.message, sent: false });
+    }
   };
 
   return (
     <Panel title="Használt hirdetések">
       {boot.listings.length > 0 ? (
-        <div className="mb-6 space-y-3">
+        <ul className="mb-7 space-y-3">
           {boot.listings.map((l) => (
-            <div key={l.id} className="rounded-2xl bg-black/60 p-3 ring-1 ring-white/5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold">EU {l.eu_size} • {l.condition_txt}</p>
-                <p className="text-sm font-semibold text-amber-300">{l.price_formatted}</p>
+            <li key={l.id} className="surface-quiet px-4 py-4">
+              <div className="flex items-end justify-between gap-3">
+                <span className="pb-1 text-gray-200">
+                  EU {l.eu_size} · {l.condition_txt}
+                </span>
+                <Price value={l.price_formatted} size="sub" />
               </div>
-              {l.note && <p className="mt-1 text-[11px] text-gray-400">{l.note}</p>}
-              <p className="mt-1 text-[11px] text-gray-500">
-                {l.seller}{l.location ? ` • ${l.location}` : ""}
+              {l.note && <p className="text-meta mt-2 text-gray-500">{l.note}</p>}
+              <p className="text-meta mt-1 text-gray-600">
+                {l.seller}
+                {l.location ? ` · ${l.location}` : ""}
               </p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
-        <p className="mb-6 text-xs text-gray-500">
-          Ehhez a modellhez még nincs használt hirdetés.
+        <p className="mb-7 text-gray-500">
+          Ehhez a modellhez még nincs használt hirdetés. Legyél te az első.
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-300">
-          Hirdetés feladása
-        </h4>
+      <div className="surface-quiet p-5">
+        <h4 className="mb-4 text-white">Hirdetés feladása</h4>
 
-        {sent ? (
-          <p className="text-xs text-emerald-300">
-            Köszönjük! A hirdetés moderálás után jelenik meg.
+        {!user ? (
+          <p className="text-gray-400">
+            A hirdetésfeladáshoz{" "}
+            <Link to="/belepes" className="text-indigo-300 hover:text-indigo-200">
+              be kell jelentkezned
+            </Link>
+            .
           </p>
-        ) : (
-          <div className="space-y-2">
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Input placeholder="Méret (pl. 42)" value={form.size} onChange={update("size")} />
-              <Input placeholder="Állapot" value={form.condition} onChange={update("condition")} />
-              <Input placeholder="Ár (Ft)" value={form.price} onChange={update("price")} />
-            </div>
-            <Input placeholder="Megjegyzés" value={form.note} onChange={update("note")} />
-
-            <button
-              onClick={handleSubmit}
-              className="mt-1 rounded-full bg-indigo-500 px-4 py-2 text-[11px] font-semibold transition hover:bg-indigo-400"
-            >
-              Hirdetés beküldése
-            </button>
-
-            <p className="text-[11px] text-gray-500">
-              A beküldés a bejelentkezés bevezetése után lesz aktív.
+        ) : state.sent ? (
+          <div>
+            <p className="text-emerald-300">
+              Beküldve. A hirdetés moderálás után jelenik meg.
             </p>
+            <Button
+              variant="ghost"
+              className="mt-3 px-0 py-0"
+              onClick={() => setState((s) => ({ ...s, sent: false }))}
+            >
+              Új hirdetés feladása
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Select
+                label="Méret"
+                value={form.eu_size}
+                onChange={update("eu_size")}
+                options={boot.sizes}
+                placeholder="Válassz"
+              />
+              <Select
+                label="Állapot"
+                value={form.condition_txt}
+                onChange={update("condition_txt")}
+                options={["Új", "Alig használt", "Használt", "Sokat használt"]}
+                placeholder="Válassz"
+              />
+              <Input
+                label="Ár"
+                type="number"
+                inputMode="numeric"
+                placeholder="Ft"
+                value={form.price_huf}
+                onChange={update("price_huf")}
+              />
+            </div>
+
+            <Input
+              label="Település"
+              placeholder="Nem kötelező"
+              value={form.location}
+              onChange={update("location")}
+            />
+
+            <Input
+              label="Megjegyzés"
+              placeholder="Nem kötelező"
+              value={form.note}
+              onChange={update("note")}
+            />
+
+            {state.error && (
+              <p role="alert" className="text-rose-300">
+                {state.error}
+              </p>
+            )}
+
+            <Button onClick={handleSubmit} disabled={state.busy}>
+              {state.busy ? "Küldés" : "Hirdetés beküldése"}
+            </Button>
           </div>
         )}
       </div>
@@ -247,52 +317,47 @@ function UsedListings({ boot }) {
 }
 
 // ------------------------------------------------------------
-// Apro epitoelemek
-// ------------------------------------------------------------
 function Wrapper({ children }) {
-  return (
-    <div className="bg-neutral-950 text-white">
-      <section className="mx-auto max-w-6xl px-4 pb-20 pt-16">{children}</section>
-    </div>
-  );
-}
-
-function Panel({ title, children, sticky }) {
-  return (
-    <div
-      className={`rounded-3xl border border-white/10 bg-black/50 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.7)] ${
-        sticky ? "lg:sticky lg:top-24" : ""
-      }`}
-    >
-      <h2 className="mb-4 text-sm font-semibold text-white">{title}</h2>
-      {children}
-    </div>
-  );
+  return <div className="mx-auto max-w-6xl px-4 pb-28 pt-12">{children}</div>;
 }
 
 function Spec({ label, value }) {
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="mt-0.5 text-sm text-gray-200">{value}</dd>
+      <dt className="text-meta text-gray-500">{label}</dt>
+      <dd className="mt-1 text-gray-200">{value}</dd>
     </div>
   );
 }
 
-function Chip({ children }) {
+function DetailSkeleton() {
   return (
-    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-gray-300">
-      {children}
-    </span>
-  );
-}
+    <Wrapper>
+      <div className="skeleton h-4 w-32" />
+      <div className="skeleton mt-5 h-12 w-80 max-w-full" />
+      <div className="skeleton mt-4 h-5 w-[28rem] max-w-full" />
 
-function Input(props) {
-  return (
-    <input
-      {...props}
-      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder-gray-500 outline-none transition focus:border-indigo-400"
-    />
+      <div className="mt-12 grid gap-7 lg:grid-cols-5">
+        <div className="space-y-7 lg:col-span-3">
+          <div className="surface-raised p-6">
+            <div className="skeleton h-6 w-40" />
+            <div className="skeleton mt-5 h-24 w-full" />
+          </div>
+          <div className="surface-raised p-6">
+            <div className="skeleton h-6 w-48" />
+            <div className="skeleton mt-5 h-20 w-full" />
+          </div>
+        </div>
+        <div className="lg:col-span-2">
+          <div className="surface-raised p-6">
+            <div className="skeleton h-6 w-36" />
+            <div className="skeleton mt-5 h-16 w-full" />
+            <div className="skeleton mt-3 h-16 w-full" />
+            <div className="skeleton mt-3 h-16 w-full" />
+          </div>
+        </div>
+      </div>
+    </Wrapper>
   );
 }

@@ -1,9 +1,6 @@
 // ============================================================
-// Marka oldal - egyetlen komponens mind a harom markahoz
+// Márkaoldal
 // src/pages/BrandPage.jsx
-//
-// Ez valtja ki a NikePage.jsx / AdidasPage.jsx / PumaPage.jsx
-// harmast (~1350 sor -> ~230 sor). A marka az URL-bol jon.
 // ============================================================
 
 import React, { useState, useRef } from "react";
@@ -11,12 +8,23 @@ import { Link, useParams, Navigate } from "react-router-dom";
 
 import { api, useApi } from "../lib/api";
 import { BRAND_CONFIG, SURFACE_LABELS } from "../data/brandConfig";
+import BootCard from "../components/BootCard";
+import {
+  TabBar,
+  FilterGroup,
+  Button,
+  SkeletonGrid,
+  EmptyState,
+  ErrorState,
+  StaggerList,
+  StaggerItem,
+} from "../components/ui";
 
-const SORT_MODES = [
-  { id: "top",  label: "Legnépszerűbb" },
-  { id: "new",  label: "Legújabb" },
-  { id: "sale", label: "Akciós" },
-  { id: "all",  label: "Összes" },
+const TABS = [
+  ["top", "Népszerű"],
+  ["new", "Újdonság"],
+  ["sale", "Akciós"],
+  ["all", "Összes"],
 ];
 
 const SURFACES = ["all", "FG", "AG", "TF"];
@@ -27,256 +35,171 @@ export default function BrandPage() {
   const config = BRAND_CONFIG[brand];
 
   const [tab, setTab] = useState("top");
-  const [lineFilter, setLineFilter] = useState("all");
-  const [surfaceFilter, setSurfaceFilter] = useState("all");
-  const [tierFilter, setTierFilter] = useState("all");
+  const [line, setLine] = useState("all");
+  const [surface, setSurface] = useState("all");
+  const [tier, setTier] = useState("all");
 
-  const filterSectionRef = useRef(null);
+  const resultsRef = useRef(null);
 
-  // Adatlekeres - minden szuro valtozasnal ujra fut
   const { data: boots, loading, error } = useApi(
-    () => api.boots({ brand, tab, surface: surfaceFilter, tier: tierFilter }),
-    [brand, tab, surfaceFilter, tierFilter]
+    () => api.boots({ brand, tab, surface, tier }),
+    [brand, tab, surface, tier]
   );
 
-  // Ismeretlen marka -> vissza a webshopra
   if (!config) return <Navigate to="/webshop" replace />;
 
-  const scrollToFilters = () =>
-    filterSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const visible = (boots || []).filter((b) => line === "all" || b.line_name === line);
+  const activeFilters = [line, surface, tier].filter((v) => v !== "all").length;
 
-  const handleTopCardClick = (line) => {
-    setLineFilter(line);
-    scrollToFilters();
+  const resetFilters = () => {
+    setLine("all");
+    setSurface("all");
+    setTier("all");
   };
 
-  // A vonal szerinti szures marad kliensoldalon - keves elem, gyors
-  const visibleBoots = (boots || []).filter(
-    (b) => lineFilter === "all" || b.line_name === lineFilter
-  );
+  const selectLine = (name) => {
+    setLine(name);
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
-    <div className="bg-neutral-950 text-white">
-      {/* ---------- Felso szakasz: modellcsalad kartyak ---------- */}
-      <section className="relative bg-gradient-to-b from-neutral-950 via-neutral-950 to-black pb-12 pt-10">
-        <div className="pointer-events-none absolute -right-40 top-10 h-72 w-72 rounded-full bg-fuchsia-600/20 blur-3xl" />
-        <div className="pointer-events-none absolute -left-40 bottom-10 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl" />
-
-        <div className="relative mx-auto max-w-6xl px-4">
-          <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-xs uppercase tracking-[0.25em] text-gray-500">
-              Webshop • {config.label}
-            </p>
-
-            <Link
-              to="/bootsfinder"
-              className="inline-flex items-center rounded-full bg-white px-5 py-2 text-sm font-semibold text-black shadow-[0_0_25px_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_0_40px_rgba(255,255,255,0.55)]"
-            >
-              BootsFinder – segítség a választáshoz ↗
-            </Link>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {config.lines.map((line) => (
-              <button
-                key={line.name}
-                type="button"
-                onClick={() => handleTopCardClick(line.name)}
-                className="group relative flex overflow-hidden rounded-3xl bg-neutral-900/60 text-left shadow-[0_20px_60px_rgba(0,0,0,0.8)] ring-1 ring-white/10"
-              >
-                <div className="relative w-full">
-                  <img
-                    src={line.image}
-                    alt={line.name}
-                    className="h-64 w-full object-cover opacity-80 transition duration-700 group-hover:scale-105"
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                  <div className="absolute inset-0 flex flex-col justify-end p-5">
-                    <p className={`text-xs font-semibold uppercase tracking-[0.25em] ${line.accent}`}>
-                      {line.kicker}
-                    </p>
-                    <h3 className="mt-2 text-xl font-semibold">{line.name}</h3>
-                    <span className={`mt-3 text-sm font-medium ${line.accent} ${line.hover}`}>
-                      {line.name} modellek szűrése ↓
-                    </span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ---------- Szurok + talalatok ---------- */}
-      <section ref={filterSectionRef} className="mx-auto max-w-6xl px-4 pb-20 pt-10">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold">Válogatás szerint</h2>
-          <div className="flex flex-wrap gap-2 text-xs">
-            {SORT_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setTab(mode.id)}
-                className={`rounded-full px-4 py-1.5 transition ${
-                  tab === mode.id
-                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/40"
-                    : "bg-white/5 text-gray-300 hover:bg-white/10"
-                }`}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-6 lg:flex-row">
-          {/* Szuropanel */}
-          <aside className="w-full rounded-3xl border border-white/10 bg-black/50 p-4 text-xs text-gray-200 shadow-[0_18px_45px_rgba(0,0,0,0.7)] lg:w-72">
-            <h3 className="mb-3 text-sm font-semibold text-white">Szűrők</h3>
-
-            <FilterGroup
-              title="Vonal"
-              options={["all", ...config.lines.map((l) => l.name)]}
-              value={lineFilter}
-              onChange={setLineFilter}
-              labelFor={(v) => (v === "all" ? "Mind" : v)}
-            />
-
-            <FilterGroup
-              title="Pályatípus"
-              options={SURFACES}
-              value={surfaceFilter}
-              onChange={setSurfaceFilter}
-              labelFor={(v) => (v === "all" ? "Mind" : SURFACE_LABELS[v] || v)}
-            />
-
-            <FilterGroup
-              title="Szint"
-              options={TIERS}
-              value={tierFilter}
-              onChange={setTierFilter}
-              labelFor={(v) => (v === "all" ? "Mind" : v)}
-            />
-
-            <p className="mt-3 text-[11px] text-gray-500">
-              A szűrés az adatbázisban fut – a szerver csak a találatokat küldi vissza.
-            </p>
-          </aside>
-
-          {/* Talalatok */}
-          <div className="flex-1">
-            {loading && <StateBox>Betöltés…</StateBox>}
-            {error && <StateBox tone="error">Nem sikerült betölteni: {error}</StateBox>}
-
-            {!loading && !error && (
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {visibleBoots.map((boot) => (
-                  <BootCard key={boot.slug} boot={boot} brand={brand} tab={tab} />
-                ))}
-
-                {visibleBoots.length === 0 && (
-                  <StateBox>
-                    Nincs olyan modell, ami megfelelne az aktuális szűrőknek.
-                    Érdemes lazítani egy feltételen (pl. pályatípus vagy szint).
-                  </StateBox>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------
-// Kisebb, ujrahasznalt reszek
-// ------------------------------------------------------------
-
-function FilterGroup({ title, options, value, onChange, labelFor }) {
-  return (
-    <div className="mb-4">
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-        {title}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((opt) => (
-          <button
-            key={opt}
-            onClick={() => onChange(opt)}
-            className={`rounded-full border px-3 py-1 text-[11px] transition ${
-              value === opt
-                ? "border-indigo-400 bg-indigo-500/20 text-indigo-200"
-                : "border-white/10 bg-white/5 text-gray-300 hover:border-indigo-300/60"
-            }`}
+    <div className="mx-auto max-w-6xl px-4 pb-28 pt-12">
+      {/* ---------- Fejléc ---------- */}
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <Link
+            to="/webshop"
+            className="text-meta text-gray-500 transition-colors hover:text-gray-300"
           >
-            {labelFor(opt)}
-          </button>
-        ))}
+            Webshop
+          </Link>
+          <h1 className="mt-2 text-white">{config.label}</h1>
+        </div>
+
+        <Link
+          to="/bootsfinder"
+          className="rounded-xl border border-white/15 px-5 py-2.5 font-medium text-gray-200 transition-all duration-200 hover:border-indigo-400/60 hover:bg-white/5 hover:text-white"
+        >
+          Segítség a választáshoz
+        </Link>
       </div>
-    </div>
-  );
-}
 
-function BootCard({ boot, brand, tab }) {
-  const badge =
-    tab === "sale" ? { text: "Akciós", cls: "bg-rose-500/20 text-rose-200" } :
-    tab === "new" && boot.is_new ? { text: "Új modell", cls: "bg-emerald-500/20 text-emerald-200" } :
-    tab === "top" && boot.is_bestseller ? { text: "Best seller", cls: "bg-indigo-500/20 text-indigo-200" } :
-    null;
+      {/* ---------- Modellcsaládok ---------- */}
+      <div className="mb-16 grid gap-5 md:grid-cols-3">
+        {config.lines.map((item) => {
+          const active = line === item.name;
 
-  return (
-    <article className="group flex flex-col justify-between rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 via-black/70 to-black/90 p-4 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.8)]">
-      <div>
-        <p className="mb-1 flex items-center justify-between text-[11px] uppercase tracking-wide text-gray-400">
-          <span>{boot.brand_name} • {boot.line_name}</span>
-          {badge && (
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.cls}`}>
-              {badge.text}
-            </span>
-          )}
-        </p>
+          return (
+            <button
+              key={item.name}
+              onClick={() => selectLine(item.name)}
+              aria-pressed={active}
+              className={`group relative h-56 overflow-hidden rounded-3xl text-left transition-all duration-300 ${
+                active ? "ring-2 ring-indigo-400" : "hover:ring-1 hover:ring-white/25"
+              }`}
+            >
+              <img
+                src={item.image}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover opacity-70 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-transparent" />
 
-        <h3 className="mb-1 text-sm font-semibold text-white">{boot.name}</h3>
-        <p className="mb-2 text-[11px] text-gray-300">{boot.tagline}</p>
-        <p className="mb-1 text-[11px] text-gray-400">
-          {SURFACE_LABELS[boot.surface] || boot.surface} • {boot.tier}
-        </p>
+              <div className="absolute inset-x-0 bottom-0 p-6 transition-transform duration-300 group-hover:-translate-y-1">
+                <h2 className="text-white">{item.name}</h2>
+                <p className="mt-1 text-gray-400">{item.kicker}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-        {boot.min_price && (
-          <div className="mt-3 rounded-2xl bg-black/60 p-3 ring-1 ring-white/5">
-            <p className="text-[11px] uppercase tracking-wide text-gray-400">
-              Legjobb partner ajánlat
-            </p>
-            <p className="mt-1 text-base font-semibold text-amber-300">
-              {boot.min_price_formatted}
-            </p>
-            <p className="mt-1 text-[11px] text-gray-400">
-              {boot.partner_count} partner kínálatában
-            </p>
-          </div>
+      {/* ---------- Válogatás ---------- */}
+      <div
+        ref={resultsRef}
+        className="mb-6 flex flex-wrap items-center justify-between gap-4"
+      >
+        <TabBar tabs={TABS} value={tab} onChange={setTab} idPrefix="brand" />
+
+        {!loading && !error && (
+          <p className="text-meta text-gray-500">{visible.length} találat</p>
         )}
       </div>
 
-      <div className="mt-4">
-        <Link
-          to={`/webshop/${brand}/${boot.slug}`}
-          className="inline-flex w-full items-center justify-center rounded-full bg-indigo-500 px-3 py-2 text-[11px] font-semibold text-white shadow-lg shadow-indigo-500/40 transition group-hover:bg-indigo-400"
-        >
-          Részletek &amp; típusok →
-        </Link>
+      <div className="flex flex-col gap-7 lg:flex-row">
+        <aside className="surface-raised w-full shrink-0 p-6 lg:w-64">
+          <div className="mb-5 flex items-center justify-between">
+            <h4 className="text-white">Szűrők</h4>
+            {activeFilters > 0 && (
+              <Button variant="ghost" onClick={resetFilters} className="px-0 py-0">
+                Törlés
+              </Button>
+            )}
+          </div>
+
+          <FilterGroup
+            title="Modellcsalád"
+            options={["all", ...config.lines.map((l) => l.name)]}
+            value={line}
+            onChange={setLine}
+            labelFor={(v) => (v === "all" ? "Mind" : v)}
+          />
+
+          <FilterGroup
+            title="Pályatípus"
+            options={SURFACES}
+            value={surface}
+            onChange={setSurface}
+            labelFor={(v) => (v === "all" ? "Mind" : SURFACE_LABELS[v] || v)}
+          />
+
+          <FilterGroup
+            title="Kategória"
+            options={TIERS}
+            value={tier}
+            onChange={setTier}
+            labelFor={(v) => (v === "all" ? "Mind" : v)}
+          />
+        </aside>
+
+        <div className="flex-1">
+          {loading && (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <SkeletonGrid count={6} />
+            </div>
+          )}
+
+          {error && <ErrorState>{error}</ErrorState>}
+
+          {!loading && !error && visible.length > 0 && (
+            <StaggerList
+              key={`${tab}-${line}-${surface}-${tier}`}
+              className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
+            >
+              {visible.map((boot) => (
+                <StaggerItem key={boot.slug}>
+                  <BootCard boot={boot} brand={brand} tab={tab} />
+                </StaggerItem>
+              ))}
+            </StaggerList>
+          )}
+
+          {!loading && !error && visible.length === 0 && (
+            <EmptyState
+              title="Nincs találat"
+              action={
+                activeFilters > 0 && (
+                  <Button variant="secondary" onClick={resetFilters}>
+                    Szűrők törlése
+                  </Button>
+                )
+              }
+            >
+              Próbálj meg lazítani egy feltételen – például a pályatípuson.
+            </EmptyState>
+          )}
+        </div>
       </div>
-    </article>
-  );
-}
-
-function StateBox({ children, tone }) {
-  const cls = tone === "error"
-    ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
-    : "border-white/10 bg-black/60 text-gray-300";
-
-  return (
-    <div className={`col-span-full rounded-2xl border p-6 text-sm ${cls}`}>
-      {children}
     </div>
   );
 }

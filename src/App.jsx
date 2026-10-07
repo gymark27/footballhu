@@ -2,6 +2,8 @@ import React from "react";
 import { Routes, Route, useLocation, Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { AuthProvider } from "./lib/auth";
+
 import Navbar from "./components/navbar";
 import Hero from "./components/hero";
 import BootsFinderTeaser from "./components/BootsFinder";
@@ -11,6 +13,8 @@ import BootsFinderPage from "./pages/BootsFinderPage";
 import WebshopHome from "./pages/WebshopHome";
 import BrandPage from "./pages/BrandPage";
 import BootDetail from "./pages/BootDetail";
+import AuthPage from "./pages/AuthPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Oldalváltás animáció
 function PageTransition({ children }) {
@@ -40,7 +44,7 @@ function HomePage() {
   );
 }
 
-// Egyszerű "rólunk" oldal
+// Rólunk oldal
 function AboutPage() {
   return (
     <section className="mx-auto max-w-3xl px-4 pb-20 pt-16">
@@ -60,7 +64,7 @@ function AboutPage() {
   );
 }
 
-// 404 – ismeretlen útvonal
+// 404
 function NotFoundPage() {
   return (
     <section className="mx-auto max-w-3xl px-4 pb-20 pt-24 text-center">
@@ -81,37 +85,41 @@ function NotFoundPage() {
 
 function App() {
   const location = useLocation();
-
-  // Minden oldal ugyanabba az animációs keretbe kerül
   const page = (element) => <PageTransition>{element}</PageTransition>;
 
   return (
-    <div className="relative bg-neutral-950 text-white">
-      {/* Globális háttér-glow */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-40 left-[-10%] h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="absolute top-[40%] right-[-15%] h-96 w-96 rounded-full bg-fuchsia-500/18 blur-3xl" />
-        <div className="absolute bottom-[-20%] left-[20%] h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
+    <AuthProvider>
+      <div className="relative bg-neutral-950 text-white">
+        {/* Globális háttér-glow */}
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute -top-40 left-[-10%] h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
+          <div className="absolute top-[40%] right-[-15%] h-96 w-96 rounded-full bg-fuchsia-500/18 blur-3xl" />
+          <div className="absolute bottom-[-20%] left-[20%] h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
+        </div>
+
+        <Navbar />
+
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={page(<HomePage />)} />
+            <Route path="/rolunk" element={page(<AboutPage />)} />
+            <Route path="/bootsfinder" element={page(<BootsFinderPage />)} />
+            <Route path="/webshop" element={page(<WebshopHome />)} />
+
+            {/* Egy útvonal mind a három márkához */}
+            <Route path="/webshop/:brand" element={page(<BrandPage />)} />
+            <Route path="/webshop/:brand/:slug" element={page(<BootDetail />)} />
+
+            {/* Felhasználói fiók */}
+            <Route path="/belepes" element={page(<AuthPage mode="login" />)} />
+            <Route path="/regisztracio" element={page(<AuthPage mode="register" />)} />
+            <Route path="/profil" element={page(<ProfilePage />)} />
+
+            <Route path="*" element={page(<NotFoundPage />)} />
+          </Routes>
+        </AnimatePresence>
       </div>
-
-      <Navbar />
-
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          <Route path="/" element={page(<HomePage />)} />
-          <Route path="/rolunk" element={page(<AboutPage />)} />
-          <Route path="/bootsfinder" element={page(<BootsFinderPage />)} />
-          <Route path="/webshop" element={page(<WebshopHome />)} />
-
-          {/* Egy útvonal mind a három márkához */}
-          <Route path="/webshop/:brand" element={page(<BrandPage />)} />
-          <Route path="/webshop/:brand/:slug" element={page(<BootDetail />)} />
-
-          {/* Minden más */}
-          <Route path="*" element={page(<NotFoundPage />)} />
-        </Routes>
-      </AnimatePresence>
-    </div>
+    </AuthProvider>
   );
 }
 
